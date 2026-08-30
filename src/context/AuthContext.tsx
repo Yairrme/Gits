@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, PropsWithChildren } from 'react';
+import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store'; // Para persistir el token
 
 type User = {
@@ -29,8 +30,17 @@ export function AuthProvider({ children }: PropsWithChildren) {
     // Aquí cargarías el token de SecureStore para ver si ya está logueado
     const loadSession = async () => {
       try {
-        const token = await SecureStore.getItemAsync('token');
-        const storedUser = await SecureStore.getItemAsync('user-data');
+        let token: string | null = null;
+        let storedUser: string | null = null;
+        
+        if (Platform.OS === 'web') {
+          token = localStorage.getItem('token');
+          storedUser = localStorage.getItem('user-data');
+        } else {
+          token = await SecureStore.getItemAsync('token');
+          storedUser = await SecureStore.getItemAsync('user-data');
+        }
+        
         if (token && storedUser) {
           setUser(JSON.parse(storedUser));
         }
@@ -45,14 +55,24 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, []);
 
   const signIn = async (token: string, userData: User) => {
-    await SecureStore.setItemAsync('token', token);
-    await SecureStore.setItemAsync('user-data', JSON.stringify(userData));
+    if (Platform.OS === 'web') {
+      localStorage.setItem('token', token);
+      localStorage.setItem('user-data', JSON.stringify(userData));
+    } else {
+      await SecureStore.setItemAsync('token', token);
+      await SecureStore.setItemAsync('user-data', JSON.stringify(userData));
+    }
     setUser(userData);
   };
 
   const signOut = async () => {
-    await SecureStore.deleteItemAsync('token');
-    await SecureStore.deleteItemAsync('user-data');
+    if (Platform.OS === 'web') {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user-data');
+    } else {
+      await SecureStore.deleteItemAsync('token');
+      await SecureStore.deleteItemAsync('user-data');
+    }
     setUser(null);
   };
 

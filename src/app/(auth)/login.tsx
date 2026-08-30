@@ -1,6 +1,7 @@
 import { login as loginApi } from '@/api/auth';
 import { useAuth } from '@/hooks/use-auth';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -10,16 +11,19 @@ import {
   Dimensions,
   Image,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
+  ScrollView,
   StatusBar,
   StyleSheet,
   Switch,
   Text,
   TextInput,
+  useWindowDimensions,
   View
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width, height } = Dimensions.get('window');
 
@@ -44,6 +48,10 @@ export default function LoginScreen() {
   const systemColorScheme = useColorScheme() ?? 'light';
   const [localColorScheme, setLocalColorScheme] = useState(systemColorScheme);
   const isDark = localColorScheme === 'dark';
+  const insets = useSafeAreaInsets();
+
+  const { width } = useWindowDimensions();
+  const isLargeScreen = width > 768;
 
   const theme = {
     background: isDark ? COLORS.darkBackground : COLORS.lightBackground,
@@ -52,6 +60,7 @@ export default function LoginScreen() {
     text: isDark ? COLORS.darkText : COLORS.lightText,
     textSecondary: isDark ? COLORS.darkTextSecondary : COLORS.lightTextSecondary,
     border: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+    shadow: isDark ? '#000' : '#ccc',
   };
 
   const [email, setEmail] = useState('');
@@ -76,12 +85,12 @@ export default function LoginScreen() {
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 600,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       }),
       Animated.timing(slideAnim, {
         toValue: 0,
         duration: 600,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       }),
     ]).start();
   }, [fadeAnim, slideAnim]);
@@ -121,138 +130,239 @@ export default function LoginScreen() {
         style={styles.keyboardView}
       >
         <SafeAreaView style={styles.safeArea}>
-          {/* Theme Toggle */}
-          <View style={styles.themeToggleContainer}>
-            <Text style={[styles.themeToggleText, { color: theme.text }]}>☀️</Text>
-            <Switch
-              value={isDark}
-              onValueChange={(value) => {
-                const newTheme = value ? 'dark' : 'light';
-                setLocalColorScheme(newTheme);
-                try {
-                  Appearance.setColorScheme(newTheme);
-                } catch (error) {
-                  console.log('Error setting color scheme:', error);
-                }
-              }}
-              trackColor={{ false: '#ccc', true: COLORS.blue }}
-              thumbColor={'#fff'}
-            />
-            <Text style={[styles.themeToggleText, { color: theme.text }]}>🌙</Text>
-          </View>
-
-          {/* Logo y Título */}
-          <Animated.View
-            style={[
-              styles.headerContainer,
-              {
-                opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }],
-              },
-            ]}
+          <ScrollView
+            style={{ width: '100%' }}
+            contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center' }}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
           >
-            <Image
-              source={isDark ? require('../../../assets/images/its logo oscuro.jpg') : require('../../../assets/images/its-logo.jpg')}
-              style={styles.logo}
-              resizeMode="contain"
-            />
-            <Text style={[styles.welcomeText, { color: theme.text }]}>Campus Virtual ITS Cipolletti</Text>
-            <Text style={[styles.subtitleText, { color: theme.textSecondary }]}>
-              Iniciá sesión para continuar
-            </Text>
-          </Animated.View>
+            {/* Theme Toggle (Solo PC) */}
+            {isLargeScreen && (
+              <View style={[styles.themeToggleContainer, { top: Math.max(insets.top, 8) }]}>
+                <Ionicons name="sunny" size={16} color={isDark ? theme.textSecondary : '#FFD700'} />
+                <Switch
+                  value={isDark}
+                  onValueChange={(value) => {
+                    const newTheme = value ? 'dark' : 'light';
+                    setLocalColorScheme(newTheme);
+                    try {
+                      Appearance.setColorScheme(newTheme);
+                    } catch (error) {
+                      if (Platform.OS !== 'web') {
+                        console.log('Error setting color scheme:', error);
+                      }
+                    }
+                  }}
+                  style={{ transform: [{ scale: 0.8 }] }}
+                  trackColor={{ false: '#ccc', true: COLORS.blue }}
+                  thumbColor={'#fff'}
+                />
+                <Ionicons name="moon" size={16} color={isDark ? '#47F54E' : theme.textSecondary} />
+              </View>
+            )}
 
-          {/* Formulario */}
-          <Animated.View
-            style={[
-              styles.formContainer,
-              {
-                opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }],
-              },
-            ]}
-          >
-            <View style={styles.inputWrapperContainer}>
-              <View
+            {/* Logo (Fuera de la tarjeta) */}
+            <Animated.View
+              style={[
+                {
+                  alignItems: 'center',
+                  opacity: fadeAnim,
+                  transform: [{ translateY: slideAnim }],
+                },
+              ]}
+            >
+              <Image
+                source={isDark ? require('../../../assets/images/its logo oscuro.jpg') : require('../../../assets/images/its-logo.jpg')}
+                style={[styles.logo, isLargeScreen && styles.logoLarge]}
+                resizeMode="contain"
+              />
+            </Animated.View>
+
+            {/* Responsive Card Container */}
+            <View style={[
+              styles.cardContainer,
+              isLargeScreen && {
+                backgroundColor: theme.card,
+                shadowColor: theme.shadow,
+                elevation: 10,
+                padding: 48,
+                borderRadius: 24,
+                shadowOffset: { width: 0, height: 10 },
+                shadowOpacity: 0.1,
+                shadowRadius: 20,
+                width: 500,
+                maxWidth: '90%',
+              }
+            ]}>
+              {/* Título */}
+              <Animated.View
                 style={[
-                  styles.inputWrapper,
-                  { backgroundColor: theme.input, borderColor: theme.border },
-                  emailFocused && styles.inputWrapperFocused,
+                  styles.headerContainer,
+                  {
+                    opacity: fadeAnim,
+                    transform: [{ translateY: slideAnim }],
+                  },
                 ]}
               >
-                <TextInput
-                  style={[styles.input, { color: theme.text }]}
-                  placeholder="Correo electrónico"
-                  placeholderTextColor={theme.textSecondary}
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  onFocus={() => setEmailFocused(true)}
-                  onBlur={() => setEmailFocused(false)}
-                />
-              </View>
+                <Text style={[styles.welcomeText, { color: theme.text }]}>Campus Virtual ITS Cipolletti</Text>
+                <Text style={[styles.subtitleText, { color: theme.textSecondary }]}>
+                  Iniciá sesión para continuar
+                </Text>
+              </Animated.View>
 
-              <View
+              {/* Formulario */}
+              <Animated.View
                 style={[
-                  styles.inputWrapper,
-                  { backgroundColor: theme.input, borderColor: theme.border },
-                  passwordFocused && styles.inputWrapperFocused,
+                  styles.formContainer,
+                  {
+                    opacity: fadeAnim,
+                    transform: [{ translateY: slideAnim }],
+                  },
+                  isLargeScreen && { maxWidth: '100%' } // Expand to fill the card
                 ]}
               >
-                <TextInput
-                  style={[styles.input, { color: theme.text }]}
-                  placeholder="Contraseña"
-                  placeholderTextColor={theme.textSecondary}
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                  onFocus={() => setPasswordFocused(true)}
-                  onBlur={() => setPasswordFocused(false)}
-                />
-              </View>
+                <View style={styles.inputWrapperContainer}>
+                  <View
+                    style={[
+                      styles.inputWrapper,
+                      { backgroundColor: theme.input, borderColor: theme.border },
+                      emailFocused && styles.inputWrapperFocused,
+                    ]}
+                  >
+                    <TextInput
+                      style={[styles.input, { color: theme.text }]}
+                      placeholder="Correo electrónico"
+                      placeholderTextColor={theme.textSecondary}
+                      value={email}
+                      onChangeText={setEmail}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      onFocus={() => setEmailFocused(true)}
+                      onBlur={() => setEmailFocused(false)}
+                    />
+                  </View>
+
+                  <View
+                    style={[
+                      styles.inputWrapper,
+                      { backgroundColor: theme.input, borderColor: theme.border },
+                      passwordFocused && styles.inputWrapperFocused,
+                    ]}
+                  >
+                    <TextInput
+                      style={[styles.input, { color: theme.text }]}
+                      placeholder="Contraseña"
+                      placeholderTextColor={theme.textSecondary}
+                      value={password}
+                      onChangeText={setPassword}
+                      secureTextEntry
+                      onFocus={() => setPasswordFocused(true)}
+                      onBlur={() => setPasswordFocused(false)}
+                    />
+                  </View>
+                </View>
+
+                <Pressable style={styles.forgotPassword}>
+                  <Text style={styles.forgotPasswordText}>¿Olvidaste tu contraseña?</Text>
+                </Pressable>
+
+                {/* Login Button */}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.loginButton,
+                    pressed && styles.loginButtonPressed,
+                    isLoading && styles.loginButtonDisabled,
+                  ]}
+                  onPress={handleLogin}
+                  disabled={isLoading}
+                >
+                  <LinearGradient
+                    colors={[COLORS.blue, COLORS.green]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.loginButtonGradient}
+                  >
+                    <Text style={styles.loginButtonText}>
+                      {isLoading ? 'Ingresando...' : 'Ingresar'}
+                    </Text>
+                  </LinearGradient>
+                </Pressable>
+
+                {status ? (
+                  <View style={styles.statusContainer}>
+                    <Text
+                      style={[
+                        styles.statusText,
+                        status.includes('listos') && styles.statusSuccess,
+                        status.includes('completá') && styles.statusError,
+                      ]}
+                    >
+                      {status}
+                    </Text>
+                  </View>
+                ) : null}
+              </Animated.View>
             </View>
 
-            <Pressable style={styles.forgotPassword}>
-              <Text style={styles.forgotPasswordText}>¿Olvidaste tu contraseña?</Text>
-            </Pressable>
+            {/* Footer */}
+            <View style={[
+              styles.footerContainer,
+              { borderTopColor: theme.border },
+              !isLargeScreen && { flexDirection: 'column', alignItems: 'center' }
+            ]}>
+              {/* Left: Mini Logo */}
+              {isLargeScreen && (
+                <View style={[styles.footerSection, !isLargeScreen && { alignItems: 'center' }]}>
+                  <Image
+                    source={isDark ? require('../../../assets/images/its logo oscuro.jpg') : require('../../../assets/images/its-logo.jpg')}
+                    style={styles.footerLogo}
+                    resizeMode="contain"
+                  />
+                </View>
+              )}
 
-            {/* Login Button */}
-            <Pressable
-              style={({ pressed }) => [
-                styles.loginButton,
-                pressed && styles.loginButtonPressed,
-                isLoading && styles.loginButtonDisabled,
-              ]}
-              onPress={handleLogin}
-              disabled={isLoading}
-            >
-              <LinearGradient
-                colors={[COLORS.blue, COLORS.green]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.loginButtonGradient}
-              >
-                <Text style={styles.loginButtonText}>
-                  {isLoading ? 'Ingresando...' : 'Ingresar'}
-                </Text>
-              </LinearGradient>
-            </Pressable>
-
-            {status ? (
-              <View style={styles.statusContainer}>
-                <Text
-                  style={[
-                    styles.statusText,
-                    status.includes('listos') && styles.statusSuccess,
-                    status.includes('completá') && styles.statusError,
-                  ]}
-                >
-                  {status}
-                </Text>
+              {/* Middle: Socials */}
+              <View style={[styles.footerSection, styles.footerSocials]}>
+                <Pressable onPress={() => Linking.openURL('https://www.instagram.com/its_cipolletti/')}>
+                  <Ionicons name="logo-instagram" size={36} color={theme.textSecondary} />
+                </Pressable>
+                <Pressable onPress={() => Linking.openURL('https://www.facebook.com/profile.php?id=100042874851211')}>
+                  <Ionicons name="logo-facebook" size={36} color={theme.textSecondary} />
+                </Pressable>
+                <Pressable onPress={() => Linking.openURL('https://www.youtube.com/channel/UCkj71ff5W1nIeL5p4E-m5Hw')}>
+                  <Ionicons name="logo-youtube" size={36} color={theme.textSecondary} />
+                </Pressable>
+                <Pressable onPress={() => Linking.openURL('https://x.com/itscipolletti')}>
+                  <Ionicons name="logo-twitter" size={36} color={theme.textSecondary} />
+                </Pressable>
+                <Pressable onPress={() => Linking.openURL('')}>
+                  <Ionicons name="logo-linkedin" size={36} color={theme.textSecondary} />
+                </Pressable>
               </View>
-            ) : null}
-          </Animated.View>
+
+              {/* Right: Address & Phone */}
+              <View style={[styles.footerSection, styles.footerContact, !isLargeScreen && { alignItems: 'center' }]}>
+                <Pressable onPress={() => Linking.openURL('https://www.google.com/search?q=its+cipolletti+direcci%C3%B3n')} style={[styles.contactRow, !isLargeScreen && { justifyContent: 'center' }]}>
+                  <Ionicons name="location-sharp" size={20} color={theme.textSecondary} style={styles.contactIcon} />
+                  <Text style={[styles.footerText, { color: theme.textSecondary }, !isLargeScreen && { textAlign: 'center' }]}>
+                    Perú, Río Salado y, Cipolletti, Río Negro
+                  </Text>
+                </Pressable>
+                <Pressable onPress={() => Linking.openURL('tel:02994771976')} style={[styles.contactRow, { marginTop: 8 }, !isLargeScreen && { justifyContent: 'center' }]}>
+                  <Ionicons name="call-sharp" size={18} color={theme.textSecondary} style={styles.contactIcon} />
+                  <Text style={[styles.footerText, { color: theme.textSecondary }, !isLargeScreen && { textAlign: 'center' }]}>
+                    Teléfono: 0299 477-1976
+                  </Text>
+                </Pressable>
+                <Pressable onPress={() => Linking.openURL('mailto:direccion@itscipolletti.edu.ar')} style={[styles.contactRow, { marginTop: 8 }, !isLargeScreen && { justifyContent: 'center' }]}>
+                  <Ionicons name="mail-sharp" size={18} color={theme.textSecondary} style={styles.contactIcon} />
+                  <Text style={[styles.footerText, { color: theme.textSecondary }, !isLargeScreen && { textAlign: 'center' }]}>
+                    direccion@itscipolletti.edu.ar
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          </ScrollView>
         </SafeAreaView>
       </KeyboardAvoidingView>
     </View>
@@ -268,19 +378,24 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
     paddingHorizontal: 32, // More padding horizontally makes inputs narrower
+  },
+
+  // Responsive Card
+  cardContainer: {
+    alignItems: 'center',
+    width: '100%',
   },
 
   // Theme Toggle
   themeToggleContainer: {
     position: 'absolute',
-    top: 20,
+    top: 10,
     right: 20,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    zIndex: 10,
   },
   themeToggleText: {
     fontSize: 16,
@@ -290,26 +405,33 @@ const styles = StyleSheet.create({
   headerContainer: {
     alignItems: 'center',
     marginBottom: 40,
+    width: '100%',
   },
   logo: {
-    width: 300,
+    width: 300, // Reduced base size for mobile to avoid overflowing
     height: 300,
     marginBottom: 20,
+  },
+  logoLarge: {
+    width: 400, // Keep large size for web
+    height: 400,
   },
   welcomeText: {
     fontSize: 26,
     fontWeight: '700',
     letterSpacing: -0.5,
     marginBottom: 4,
+    textAlign: 'center',
   },
   subtitleText: {
     fontSize: 15,
+    textAlign: 'center',
   },
 
   // Form
   formContainer: {
     width: '100%',
-    maxWidth: 320, // Constrain width for a minimalist look
+    maxWidth: 320, // Constrain width for a minimalist look on mobile
     alignItems: 'center',
   },
   inputWrapperContainer: {
@@ -380,5 +502,47 @@ const styles = StyleSheet.create({
   },
   statusError: {
     color: '#EF4444',
+  },
+
+  // Footer
+  footerContainer: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 32,
+    paddingBottom: 24,
+    marginTop: 'auto', // push to bottom
+    borderTopWidth: 1,
+    gap: 24,
+  },
+  footerSection: {
+    flex: 1,
+    minWidth: 200,
+    justifyContent: 'center',
+  },
+  footerLogo: {
+    width: 100,
+    height: 100,
+  },
+  footerSocials: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 24,
+  },
+  footerContact: {
+    alignItems: 'flex-end',
+  },
+  contactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  contactIcon: {
+    marginRight: 6,
+  },
+  footerText: {
+    fontSize: 15,
+    textAlign: 'right',
   },
 });
