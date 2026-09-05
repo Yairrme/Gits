@@ -1,5 +1,5 @@
-import { api } from './client';
-import * as SecureStore from 'expo-secure-store';
+import * as SecureStore from "expo-secure-store";
+import { api } from "./client";
 
 export interface LoginPayload {
   email: string;
@@ -7,15 +7,22 @@ export interface LoginPayload {
 }
 
 export async function login({ email, password }: LoginPayload) {
-  const { data } = await api.post('/auth/login', { email, password });
+  const { data: responseData } = await api.post("/auth/login", { email, password });
   
-  if (data.access_token) {
-    await SecureStore.setItemAsync('token', data.access_token);
+  // La API envuelve la respuesta en "data" según el DTO (ApiSuccessEnvelopeDto)
+  const result = responseData.data || responseData;
+  const token = result.accessToken || result.access_token;
+
+  if (token) {
+    await SecureStore.setItemAsync("token", token);
   }
-  
-  return data;
+
+  return {
+    access_token: token,
+    user: result.user
+  };
 }
 
 export async function logout() {
-  await SecureStore.deleteItemAsync('token');
+  await SecureStore.deleteItemAsync("token");
 }
